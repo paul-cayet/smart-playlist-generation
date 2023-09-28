@@ -19,6 +19,10 @@ pip-wheel-metadata/
 
 # Jupyter Notebook
 .ipynb_checkpoints
+notebooks/*
+
+# Data
+data/*
 
 # IPython
 profile_default/
