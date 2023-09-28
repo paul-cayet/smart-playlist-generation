@@ -1,0 +1,29 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "smart-playlist-generation"
+version = "0.0.1"
+authors = [
+  { name="Paul Cayet", email="paul.cayet@student-cs.fr" },
+]
+description = "Python package to generate an optimized music playlist with smooth transitions"
+readme = "README.md"
+requires-python = ">=3.7"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Operating System :: OS Independent",
+]
+
+[project.urls]
+"Homepage" = "https://github.com/paul-cayet/smart-playlist-generation"
+"Bug Tracker" = "https://github.com/paul-cayet/smart-playlist-generation/issues"
+
+[tool.black]
+line-length = 79
+
+[tool.ruff]
+# Decrease the maximum line length to 79 characters.
+line-length = 79
+src = ["src"]

@@ -1,0 +1,28 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+
+# Unit test / coverage reports
+htmlcov/
+.coverage
+.cache
+
+# Packaging artifacts
+*.egg-info
+*.dist-info
+build/
+dist/
+pip-wheel-metadata/
+.eggs
+
+# Ruff
+.ruff_cache
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# IPython
+profile_default/
+ipython_config.py
+
+# Environments
+.venv
