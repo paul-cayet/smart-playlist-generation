@@ -19,27 +19,31 @@ class IdentityFeatureProcessor(BaseFeatureProcessor):
 class AverageFeatureProcessor(BaseFeatureProcessor):
     def __init__(
         self,
-        new_time_length: int = None,
-        new_feature_size: int = None,
+        compression_ratio: int = None,
     ):
-        self.new_time_length = new_time_length
-        self.new_feature_size = new_feature_size
+        self.compression_ratio = compression_ratio
 
     def transform(self, data):
-        if self.new_time_length:
-            data = self.average_features_along_time(data, self.new_time_length)
-        if self.new_feature_size:
+        if self.compression_ratio:
+            data = self.average_features_along_time(
+                data, self.compression_ratio
+            )
+        else:
             raise NotImplementedError("Not implemented yet")
 
         return data.tolist()
 
     @staticmethod
-    def average_features_along_time(features: np.ndarray, new_length: int):
-        N = features.shape[1] + 1 - new_length
-        if N < 1:
-            raise ValueError(
-                "The new length cannot be greater than the previous length"
-            )
+    def average_features_along_time(
+        features: np.ndarray,
+        compression_ratio: int = None,
+    ):
+        assert (
+            compression_ratio >= 0 and compression_ratio < 1
+        ), "The compression ratio must be in [0,1)"
+        if compression_ratio == 0:
+            return features
+        N = int(round(compression_ratio * (features.shape[1] - 1)))
 
         out = np.apply_along_axis(
             lambda x: np.convolve(x, np.ones((N,)) / N, mode="valid"),
@@ -47,7 +51,3 @@ class AverageFeatureProcessor(BaseFeatureProcessor):
             arr=features,
         )
         return out
-
-
-temp = np.random.random((6, 8000))
-AverageFeatureProcessor.average_features_along_time(temp, new_length=3)

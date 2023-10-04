@@ -1,4 +1,4 @@
-from typing import Union, List, Dict
+from typing import Union, List, Dict, Tuple
 import numpy as np
 import librosa
 from smart_playlist_generation.utils import JsonlFeatureStore
@@ -19,6 +19,55 @@ def simple_string_processing(s: str):
     s = "".join([x.lower() for x in s if (x.isalnum() or x == " ")])
     s = s.replace("  ", " ").replace(" ", "_")
     return s
+
+
+def quantile_normalize(x, q=0.9):
+    qmin = np.quantile(x, q=(1 - q))
+    qmax = np.quantile(x, q=q)
+    return (x - qmin) / (qmax - qmin)
+
+
+def custom_normalization(x, q=0.9):
+    """we normalize the vector x by doing 3 normalization
+    in 3 different groups: x<-100, -100<x<100 and 100<x
+    """
+    min_elements = 20
+    lb, ub = -100, 100
+    low_idx, up_idx, mid_idx = (x < lb), (x > ub), ((x > lb) & (x < ub))
+    for range_ in (low_idx, mid_idx, up_idx):
+        if len(x[range_] > min_elements):
+            x[range_] = quantile_normalize(x[range_], q=q)
+
+    return x
+
+
+def reshape_features(
+    features: np.ndarray, window_size: int, normalize: bool = False, verbose=1
+):
+    """We reshape the array from (n_features, window_size*n_windows)
+    to (n_windows,n_features*window_size)
+    """
+    if not isinstance(features, np.ndarray):
+        features = np.array(features)
+    n_windows = features.shape[1] // window_size
+    if features.shape[1] % window_size != 0:
+        new_size = n_windows * window_size
+        if verbose > 0:
+            print(
+                f"{features.shape[1]-new_size} elements will be lost due to unequal array split"  # noqa: E501
+            )
+        features = features[:, :new_size]
+        # print("Number of input features must be a multiple of window_size")
+
+    split_features = np.split(features, n_windows, axis=1)
+    features = np.array(split_features).transpose((0, 2, 1))
+    features = features.reshape((n_windows, -1))
+
+    if normalize:
+        features = np.apply_along_axis(
+            custom_normalization, arr=features, axis=1
+        )
+    return features
 
 
 def save_generated_features(
@@ -50,7 +99,7 @@ class BaseFeatureGenerator:
         data: Union[str, np.ndarray],
         sr: int = None,
         **kwargs,
-    ) -> np.ndarray:
+    ) -> Tuple[np.ndarray, int]:
         """Generate the features representing the given data.
         Parameters
         ----------
@@ -64,6 +113,8 @@ class BaseFeatureGenerator:
         -------
         features: np.ndarray
             The generated features
+        data_len: int
+            Length of the original sound file
         """
         raise NotImplementedError("abstract class")
 
@@ -120,7 +171,7 @@ class BaseFeatureGenerator:
         saving_folder = saving_folder if saving_folder else self.saving_folder
         feature_processor = (
             feature_processor
-            if feature_processor
+            if feature_processor is not None
             else IdentityFeatureProcessor()
         )
 
@@ -132,16 +183,26 @@ class BaseFeatureGenerator:
         # generate the features
         output_data = []
         for sound_filename in files:
-            print(f"Processing file\n\t{sound_filename}")
-            features = self.generate_features(sound_filename, **kwargs)
-            # transforming the features before storing them
-            features = feature_processor.transform(features)
+            try:
+                print(f"Processing file\n\t{sound_filename}")
+                features, data_len = self.generate_features(
+                    sound_filename, **kwargs
+                )
+                # transforming the features before storing them
 
-            processed_filename = simple_string_processing(sound_filename)
-            output_data.append(
-                dict(name=processed_filename, features=features)
-            )
+                features = feature_processor.transform(features)
+                print(
+                    f"""Feature length after processing={(len(features), len(features[0]))}, ratio={data_len//len(features[0])}\n"""  # noqa: E501
+                )
 
+                # sound_filename = simple_string_processing(sound_filename)
+                output_data.append(
+                    dict(name=sound_filename, features=features)
+                )
+                # print(f"features shape = {(len(features),len(features[0]))}")
+            except Exception as e:
+                print(f"Failed processing, error was {e}")
+                raise e
         # save the features
         self.save_features(
             output_data,
@@ -167,7 +228,6 @@ class BaseFeatureGenerator:
             raise ValueError(
                 "Either saving folder or self.saving_folder must be defined"
             )
-        print("filename", filename)
         saving_path = saving_path + filename
 
         save_generated_features(
@@ -204,7 +264,7 @@ class ConstantFeatureGenerator(BaseFeatureGenerator):
                 "If data is an array, the sampling rate sr is also required"
             )
 
-        return [[1]]
+        return [[1]], len(data)
 
 
 class MelCepstralFeatureGenerator(BaseFeatureGenerator):
@@ -237,9 +297,12 @@ class MelCepstralFeatureGenerator(BaseFeatureGenerator):
             raise ValueError(
                 "If data is an array, the sampling rate sr is also required"
             )
-
+        print(f"File length={len(data)}, sr={sr}")
         mfccs = librosa.feature.mfcc(
             y=data, sr=sr, n_mfcc=n_mfcc, hop_length=hop_length
         )
-
-        return mfccs
+        print(
+            f"""Feature length before processing={mfccs.shape},
+            ratio={len(data)//mfccs.shape[1]}"""
+        )
+        return mfccs, len(data)

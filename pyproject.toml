@@ -27,3 +27,4 @@ line-length = 79
 # Decrease the maximum line length to 79 characters.
 line-length = 79
 src = ["src"]
+ignore = ["F841","F401"]
