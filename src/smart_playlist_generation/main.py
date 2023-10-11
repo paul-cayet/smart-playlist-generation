@@ -14,6 +14,7 @@ from os import listdir
 from os.path import isfile, join
 import soundfile as sf
 import numpy as np
+import argparse
 
 
 def create_new_features(
@@ -45,38 +46,86 @@ def create_new_features(
 
 if __name__ == "__main__":
 
-    music_folderpath = "/home/paul/Documents/personal/python_projects/smart-playlist-generation/data/music_files/phonk/"  # noqa: E501
-    saving_folderpath = "/home/paul/Documents/personal/python_projects/smart-playlist-generation/data/"  # noqa: E501
-    features_saving_filename = "features_phonk.jsonl"
-    n_mfccs = 12
-    generate_new_features = False
-    compression_ratio = 0.85
-    window_size = 80
-    max_optimization_time = 10
-    final_playlist_name = "new_playlist.wav"
-    sample_rate = 22050
+    parser = argparse.ArgumentParser()
+
+    parser.add_argument("--music_folderpath", help="where the music is stored")
+    parser.add_argument(
+        "--saving_folderpath", help="where the features will be stored"
+    )  # noqa: E501
+    parser.add_argument(
+        "--features_saving_filename",
+        help="names of feature file",
+        default="features.jsonl",
+        required=False,
+    )
+    parser.add_argument(
+        "--n_mfccs",
+        help="number of MFCC coefficients",
+        default=12,
+        required=False,
+    )
+    parser.add_argument(
+        "--generate_new_features",
+        help="whether the features were already generated",  # noqa: E501
+        default=True,
+        required=False,
+    )
+    parser.add_argument(
+        "--compression_ratio",
+        help="how much to compress the features (e.g. 0.8 reduces by 80%)",  # noqa: E501
+        default=0.85,
+        required=False,
+    )
+    parser.add_argument(
+        "--window_size",
+        help="how many samples to consider for a transition segment",  # noqa: E501
+        default=80,
+        required=False,
+    )
+    parser.add_argument(
+        "--max_optimization_time",
+        help="maximum time allocated for running the optimization algorithm",  # noqa: E501
+        default=10,
+        required=False,
+    )
+    parser.add_argument(
+        "--final_playlist_name",
+        help="name of the generated playlist",
+        default="new_playlist.wav",
+        required=False,
+    )
+    parser.add_argument(
+        "--sample_rate",
+        help="sample rate for the music files",
+        default=22050,
+        required=False,
+    )
+
+    args = parser.parse_args()
 
     # creating new features
-    if generate_new_features:
-        create_new_features(music_folderpath, compression_ratio)
+    if args.generate_new_features:
+        create_new_features(args.music_folderpath, args.compression_ratio)
 
     # finding the mininmum inter-music transitions
     data = JsonlFeatureStore.load_data(
-        saving_folderpath + features_saving_filename
+        args.saving_folderpath + args.features_saving_filename
     )
-    min_transitions = all_min_transitions(data, window_size)
+    min_transitions = all_min_transitions(data, args.window_size)
 
     # optimizing and generating the playlist
     optimized_schedule = optimize_playlist_schedule(
-        data, min_transitions, max_processing_time=max_optimization_time
+        data, min_transitions, max_processing_time=args.max_optimization_time
     )
 
-    music_list = generate_playlist(optimized_schedule[:3], music_folderpath)
+    music_list = generate_playlist(
+        optimized_schedule[:3], args.music_folderpath
+    )
     playlist = np.concatenate(music_list)
 
     sf.write(
-        saving_folderpath + final_playlist_name,
+        args.saving_folderpath + args.final_playlist_name,
         playlist,
-        sample_rate,
+        args.sample_rate,
         "PCM_24",
     )
