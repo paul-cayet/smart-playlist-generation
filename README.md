@@ -10,11 +10,13 @@ This Python tool is designed to generate satisfying playlists from a selection o
 ![smart playlist generator figure](docs/smart_playlist_img.jpg)
 
 
-The tools works in 4 simple steps:
+The tool works in 4 simple steps:
 
 1. The `FeatureGenerator` computes vector representations of music segments, which are then processed if necessary by a `FeatureProcessor` (e.g. averaging the features)
 2. A cost matrix $C$ of the best transitions timestamps between all pairs of music: given $n$ music files, we compute $C$ such that
-$$\forall i \neq j \in [1,n], C_{i,j}= ||Z_i(t_i^*)-Z_j(t_j^*)|| $$
+
+
+$$\forall i \neq j \in [1,n], C_{i,j}= ||Z_i(t_i^\*)-Z_j(t_j^\*)||$$
 
 with
   -  $Z$ being the music representation
@@ -69,7 +71,7 @@ pip install .
 Then use the tool with the appropriate parameters:
 
 ```
-python src/smart_playlist_geneation/main.py \
+python3 src/smart_playlist_geneation/main.py \
     --music_folderpath "..." \
     --saving_folderpath "..." \
 ```
